@@ -56,25 +56,81 @@ class I18nLoader
                 continue;
             }
 
-            foreach ($this->patternGenerationStrategy->generateI18nPatterns($name, $route) as $pattern => $locales) {
-                // If this pattern is used for more than one locale, we need to keep the original route.
-                // We still add individual routes for each locale afterwards for faster generation.
-                if (count($locales) > 1) {
-                    $catchMultipleRoute = clone $route;
-                    $catchMultipleRoute->setPath($pattern);
-                    $catchMultipleRoute->setDefault('_locales', $locales);
-                    $i18nCollection->add(implode('_', $locales).I18nLoader::ROUTING_PREFIX.$name, $catchMultipleRoute);
+            $patterns = $this->patternGenerationStrategy->generateI18nPatterns($name, $route);
+            if (count($patterns) > 1) {
+                foreach ($patterns as $pattern => $locales) {
+                    // If this pattern is used for more than one locale, we need to keep the original route to do url matching
+                    if (count($locales) > 1) {
+                        $catchMultipleRoute = clone $route;
+                        $catchMultipleRoute->setPath($pattern);
+                        $catchMultipleRoute->setDefault('_locales', $locales);
+                        $i18nCollection->add(implode('_', $locales).I18nLoader::ROUTING_PREFIX.$name, $catchMultipleRoute);
+                    }
                 }
+            }
 
-                foreach ($locales as $locale) {
-                    $localeRoute = clone $route;
-                    $localeRoute->setPath($pattern);
-                    $localeRoute->setDefault('_locale', $locale);
-                    $i18nCollection->add($locale.I18nLoader::ROUTING_PREFIX.$name, $localeRoute);
+            $patternsByLocale = $this->getPatternsByLocale($route, $patterns);
+            $this->fillRouteCollection($i18nCollection, $name, $route, $patternsByLocale);
+        }
+
+        return $i18nCollection;
+    }
+
+    /**
+     * We fill $patternsByLocale so that it each branch of this three has a default value which can be overriden by the children branches
+     *
+     * @param Route $route
+     * @param array $patterns
+     *
+     * @return array
+     */
+    private function getPatternsByLocale(Route $route, array $patterns): array
+    {
+        $patternsByLocale = ['default' => $route->getPath(), 'locales' => []];
+        foreach ($patterns as $pattern => $locales) {
+            foreach ($locales as $locale) {
+                $localeParts = preg_split('/[-_]/', $locale);
+
+                $currentTable = &$patternsByLocale;
+                for ($i = 0; $i < count($localeParts); $i++) {
+                    if ($pattern != $currentTable['default']) {
+                        if (!isset($currentTable[$localeParts[$i]])) {
+                            $currentTable[$localeParts[$i]] = ['default' => $pattern, 'locales' => [$locale]];
+                            break;
+                        } else {
+                            $currentTable = &$currentTable[$localeParts[$i]];
+                        }
+                    } else {
+                        $currentTable['locales'][] = $locale;
+                        break;
+                    }
                 }
             }
         }
 
-        return $i18nCollection;
+        return $patternsByLocale;
+    }
+
+    /**
+     * @param RouteCollection $i18nCollection
+     * @param string          $name
+     * @param Route           $route
+     * @param array           $patternsByLocale
+     * @param string          $localePrefix
+     */
+    private function fillRouteCollection(RouteCollection $i18nCollection, string $name, Route $route, array $patternsByLocale, string $localePrefix = null)
+    {
+        if (!empty($patternsByLocale['locales'])) {
+            $localeRoute = clone $route;
+            $localeRoute->setPath($patternsByLocale['default']);
+            $localeRoute->setDefault('_locales', $patternsByLocale['locales']);
+            $i18nCollection->add($localePrefix.I18nLoader::ROUTING_PREFIX.$name, $localeRoute);
+        }
+
+        foreach ($patternsByLocale as $localePart => $patterns) {
+            if (!in_array($localePart, ['default', 'locales'])) {
+                $this->fillRouteCollection($i18nCollection, $name, $route, $patterns, $localePrefix ? $localePrefix.'_'.$localePart : $localePart);
+            }
+        }
     }
 }
