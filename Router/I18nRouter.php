@@ -124,21 +124,26 @@ class I18nRouter extends Router
             $this->context->setHost($this->hostMap[$locale]);
         }
 
-        try {
-            $url = $generator->generate($locale.I18nLoader::ROUTING_PREFIX.$name, $parameters, $referenceType);
+        $localeParts = preg_split('/[-_]/', $locale);
+        for ($i = count($localeParts); $i >= 0; $i--) {
+            try {
+                $url = $generator->generate(implode('_', array_slice($localeParts, 0, $i)).I18nLoader::ROUTING_PREFIX.$name, $parameters, $referenceType);
+                $url = preg_replace('/(\?|&)_locale=[A-Za-z_-]+/', '', $url);
 
-            if ($needsHost && $this->hostMap) {
-                $this->context->setHost($currentHost);
+                if ($needsHost && $this->hostMap) {
+                    $this->context->setHost($currentHost);
+                }
+
+                return $url;
+            } catch (RouteNotFoundException $ex) {
             }
-
-            return $url;
-        } catch (RouteNotFoundException $ex) {
-            if ($needsHost && $this->hostMap) {
-                $this->context->setHost($currentHost);
-            }
-
-            // fallback to default behavior
         }
+
+        // fallback to default behavior
+        if ($needsHost && $this->hostMap) {
+            $this->context->setHost($currentHost);
+        }
+
 
         // use the default behavior if no localized route exists
         return $generator->generate($name, $parameters, $referenceType);
