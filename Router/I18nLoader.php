@@ -57,7 +57,7 @@ class I18nLoader
             }
 
             $patterns = $this->patternGenerationStrategy->generateI18nPatterns($name, $route);
-            if (count($patterns) > 1) {
+            if (count($patterns) > 1 || (count($patterns) === 1 && array_keys($patterns)[0] !== $route->getPath())) {
                 foreach ($patterns as $pattern => $locales) {
                     // If this pattern is used for more than one locale, we need to keep the original route to do url matching
                     if (count($locales) > 1) {
