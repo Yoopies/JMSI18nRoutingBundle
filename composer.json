@@ -2,7 +2,7 @@
     "name":         "jms/i18n-routing-bundle",
     "description":  "This bundle allows you to create i18n routes.",
     "keywords":     ["translation","multilanguage","routing"],
-    "homepage": "http://jmsyst.com/bundles/JMSI18nRoutingBundle",       
+    "homepage": "http://jmsyst.com/bundles/JMSI18nRoutingBundle",
     "type":         "symfony-bundle",
     "license":      "Apache2",
     "authors": [
@@ -16,12 +16,12 @@
         }
     ],
     "require": {
-	"php": "^7.1",
+	"php": "^7.4|^8.0",
         "symfony/framework-bundle": "^4.0 || ^5.0"
     },
     "require-dev": {
         "sensio/framework-extra-bundle": "*",
-        "symfony/symfony": "^4.0 || ^5.0",
+        "symfony/symfony": "^4.0 || ^5.0 || ^6.0",
         "phpunit/phpunit": "^6.0"
     },
     "suggest": {
