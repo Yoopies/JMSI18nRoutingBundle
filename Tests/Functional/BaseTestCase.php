@@ -23,11 +23,26 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 class BaseTestCase extends WebTestCase
 {
+    /**
+     * The kernel to boot for the test case.
+     *
+     * KernelTestCase::$class cannot be used for this any more: it is reset to null after every test,
+     * so a value declared on the test class is lost as soon as the first test has run.
+     *
+     * @var string
+     */
+    protected static $kernelClass;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $fs = new Filesystem();
         $fs->remove(sys_get_temp_dir().'/JMSI18nRoutingBundle');
+    }
+
+    protected static function getKernelClass(): string
+    {
+        return static::$kernelClass;
     }
 }

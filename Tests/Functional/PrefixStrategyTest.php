@@ -20,7 +20,7 @@ namespace JMS\I18nRoutingBundle\Tests\Functional;
 
 class PrefixStrategyTest extends BaseTestCase
 {
-    protected static $class = PrefixStrategyKernel::class;
+    protected static $kernelClass = PrefixStrategyKernel::class;
 
     /**
      * @dataProvider getLocaleChoosingTests
