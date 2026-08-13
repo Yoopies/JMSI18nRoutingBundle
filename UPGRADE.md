@@ -38,7 +38,7 @@ JavaScript client also tries the bare route name.
 A locale falls back one part at a time, and both `-` and `_` delimit a part: `fr_BE` falls back on
 `fr`, and the per-company locales - written `fr_FR-MYCOMPANY` by `CompanyLocale` - fall back on
 `fr_FR` and then on `fr`. Route names always join the parts with `_`, so the company locale above
-looks for `<route>.fr_FR_ALTAREA`.
+looks for `<route>.fr_FR_MYCOMPANY`.
 
 Symfony's own generator is coarser: it strips only what follows the first underscore, which would
 send `fr_FR-MYCOMPANY` straight to `fr` and skip the country. `I18nRouter::generate()` therefore walks

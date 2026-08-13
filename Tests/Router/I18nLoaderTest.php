@@ -258,7 +258,7 @@ class I18nLoaderTest extends TestCase
         $translator->addLoader('array', new ArrayLoader());
         $translator->addResource('array', array('contact' => '/contact-fr'), 'fr', 'routes');
         $translator->addResource('array', array('contact' => '/contact-be'), 'fr_BE', 'routes');
-        $translator->addResource('array', array('contact' => '/contact-altarea'), 'fr_FR-MYCOMPANY', 'routes');
+        $translator->addResource('array', array('contact' => '/contact-mycompany'), 'fr_FR-MYCOMPANY', 'routes');
 
         $locales = array('fr_FR', 'fr_BE', 'fr_FR-MYCOMPANY', 'fr_BE-ACME');
         $loader  = new I18nLoader(
@@ -273,10 +273,10 @@ class I18nLoaderTest extends TestCase
 
         // The overriding company locale gets a node of its own, named with underscores whatever the
         // separator in the locale - both the router and the JavaScript client rely on that shape.
-        $altarea = $i18nCol->get('contact.fr_FR_ALTAREA');
-        self::assertNotNull($altarea);
-        self::assertEquals('/contact-altarea', $altarea->getPath());
-        self::assertEquals('fr_FR-MYCOMPANY', $altarea->getDefault('_locale'));
+        $myCompany = $i18nCol->get('contact.fr_FR_MYCOMPANY');
+        self::assertNotNull($myCompany);
+        self::assertEquals('/contact-mycompany', $myCompany->getPath());
+        self::assertEquals('fr_FR-MYCOMPANY', $myCompany->getDefault('_locale'));
 
         // The company locale without a catalogue of its own claims no node: it rides on the one
         // holding its country's pattern.
@@ -302,7 +302,7 @@ class I18nLoaderTest extends TestCase
         $translator = new Translator('fr_FR');
         $translator->addLoader('array', new ArrayLoader());
         $translator->addResource('array', array('contact' => '/contact-fr'), 'fr', 'routes');
-        $translator->addResource('array', array('contact' => '/contact-altarea'), 'fr_FR-MYCOMPANY', 'routes');
+        $translator->addResource('array', array('contact' => '/contact-mycompany'), 'fr_FR-MYCOMPANY', 'routes');
 
         $locales = array('fr_FR', 'fr_BE', 'fr_FR-MYCOMPANY');
         $loader  = new I18nLoader(
@@ -320,7 +320,7 @@ class I18nLoaderTest extends TestCase
         self::assertEquals('/contact-fr', $i18nCol->get('contact.fr')->getPath());
         self::assertEquals(array('fr_FR', 'fr_BE'), $i18nCol->get('contact.fr')->getDefault('_locales'));
 
-        self::assertEquals('/contact-altarea', $i18nCol->get('contact.fr_FR_ALTAREA')->getPath());
+        self::assertEquals('/contact-mycompany', $i18nCol->get('contact.fr_FR_MYCOMPANY')->getPath());
     }
 
     public function getStrategies()
