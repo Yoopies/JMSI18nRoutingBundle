@@ -30,7 +30,6 @@ abstract class AbstractKernel extends Kernel
         return array(
             new \Symfony\Bundle\FrameworkBundle\FrameworkBundle(),
             new \Symfony\Bundle\TwigBundle\TwigBundle(),
-            new \Sensio\Bundle\FrameworkExtraBundle\SensioFrameworkExtraBundle(),
             new \JMS\I18nRoutingBundle\Tests\Functional\TestBundle\TestBundle(),
             new \JMS\I18nRoutingBundle\JMSI18nRoutingBundle(),
         );

@@ -205,17 +205,26 @@ class I18nRouter extends Router
         }
 
         if (null !== $locales) {
-            if (!($currentLocale = $this->context->getParameter('_locale'))
-                    && null !== $request) {
-                $currentLocale = $this->localeResolver->resolveLocale(
-                    $request, $locales
-                );
+            // The resolver comes first, not the request context. Symfony seeds the context with the
+            // framework's default locale before the router runs - LocaleListener::setDefaultLocale()
+            // does it at priority 100, ahead of the RouterListener - so a locale sitting in the
+            // context is no longer evidence that anything chose it for this visitor. Reading it first
+            // would mean never asking the resolver, and every host but the default one would resolve
+            // to the wrong locale.
+            $currentLocale = null;
+            if (null !== $request) {
+                $currentLocale = $this->localeResolver->resolveLocale($request, $locales);
+            }
 
-                // If the locale resolver was not able to determine a locale, then all efforts to
-                // make an informed decision have failed. Just display something as a last resort.
-                if (!$currentLocale) {
-                    $currentLocale = reset($locales);
-                }
+            // Outside a request - a sub-request, a console command - the context is all there is.
+            if (!$currentLocale) {
+                $currentLocale = $this->context->getParameter('_locale');
+            }
+
+            // If neither could determine a locale, then all efforts to make an informed decision
+            // have failed. Just display something as a last resort.
+            if (!$currentLocale && null !== $request) {
+                $currentLocale = reset($locales);
             }
 
             if (!in_array($currentLocale, $locales, true)) {

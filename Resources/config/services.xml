@@ -25,6 +25,15 @@
         <service id="jms_i18n_routing.locale_resolver" alias="jms_i18n_routing.locale_resolver.default" public="false" />
         
         <service id="jms_i18n_routing.router" class="%jms_i18n_routing.router.class%" parent="router.default" public="false">
+            <!--
+                router.default receives a service subscriber locator holding only "routing.loader",
+                and this router needs the container itself to reach the i18n loader, the request
+                stack and the locale parameter. Inheriting the argument used to be enough because
+                Symfony aliased Psr\Container\ContainerInterface to the container, but that alias was
+                deprecated in 5.1 and removed in 6.0, leaving the inherited reference unresolvable.
+                Both the parent and this class are happy with the container, so ask for it.
+            -->
+            <argument index="0" type="service" id="service_container" />
             <call method="setLocaleResolver">
                 <argument type="service" id="jms_i18n_routing.locale_resolver" />
             </call>

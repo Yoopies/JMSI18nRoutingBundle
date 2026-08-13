@@ -64,21 +64,41 @@ matter.
 | | before | after |
 |---|---|---|
 | PHP | `^7.4 \|\| ^8.0` | `^8.2` |
-| Symfony | `^4.0 \|\| ^5.0 \|\| ^6.0` | `^5.4` |
+| Symfony | `^4.0 \|\| ^5.0 \|\| ^6.0` | `^5.4 \|\| ^6.0` |
 
-PHP 8.2 matches what the application already requires.
+PHP 8.2 matches what the application already requires. Symfony 4.x and 5.0-5.3 are gone.
 
-Symfony 4.x and 5.0-5.3 are gone. **The `^6.0` that used to be advertised never worked** - it was
-never exercised, since the test suite had not run since the Symfony upgrade. On a consistent
-Symfony 6.4 stack the 45 unit tests pass and the 6 functional tests fail: `jms_i18n_routing.router`
-is a child of `router.default`, whose first argument became a service-subscriber locator
-(`Psr\Container\ContainerInterface`). That locator is only resolved for the tagged parent
-definition, and a child definition does not inherit tags, so the container fails to compile.
+The `^6.0` that used to be advertised had never worked - nothing contradicted it, because the test
+suite had not run since the Symfony upgrade. The whole suite now passes on both a Symfony 5.4 stack
+and a Symfony 6.4 one. Three things had to be fixed to get there, and they are worth knowing about
+because two of them were silent.
 
-Supporting Symfony 6 therefore means changing how the router service is declared - swapping the
-class on `router.default` rather than deriving a service from it, which is what the application's
-own `RouterCompilerPass` already does one level up. That is a separate change; the constraint says
-`^5.4` until it is done.
+**The router service asked for a container that no longer exists.** `jms_i18n_routing.router`
+derives from `router.default`, whose first argument is `Psr\Container\ContainerInterface`. Symfony
+used to alias that to the container itself, so the inherited argument happened to resolve. The alias
+was deprecated in 5.1 and removed in 6.0, and the container then failed to compile. The service now
+asks for `service_container` explicitly, which is what it was getting all along.
 
-The test suite no longer pulls the deprecated `symfony/symfony` metapackage, listing the components
-it actually needs instead.
+**The locale resolver had stopped being called.** Since Symfony 6.0,
+`LocaleListener::setDefaultLocale()` seeds the request context with the framework's default locale
+at priority 100 - ahead of the `RouterListener`. `matchI18n()` read the context first and only fell
+back to the resolver when it was empty, so on Symfony 6 it always found the default locale sitting
+there and never asked. Host, cookie and `Accept-Language` resolution were all dead, and with `hosts`
+configured every request to a non-default host resolved to the default locale: a redirect to the
+default host, or a `ResourceNotFoundException` when `redirect_to_host` is off. The resolver is now
+consulted first whenever there is a request, and the context is the fallback for sub-requests and
+console commands.
+
+This one is worth re-reading if you subclass the router or implement `LocaleResolverInterface`: the
+resolver is now asked on every match of a route shared by several locales, where it used to be asked
+only when the context was empty. Routes belonging to a single locale never reach it, so the prefix
+strategy is unaffected.
+
+**`I18nRouter` redeclared `$defaultLocale`**, which `Router` has typed `?string` since 6.0 - and had
+itself declared well before 5.4, so the redeclaration was only ever redundant.
+
+The test suite no longer pulls the deprecated `symfony/symfony` metapackage, which was also masking
+a mixed-version install; it lists the components it needs. `sensio/framework-extra-bundle` is gone
+too: it is abandoned, and on Symfony 6 its `@Route("/", name = "homepage")` annotation was read as a
+Symfony localized path, producing routes named `<route>.name` and `<route>.value`. The test
+controller uses the `#[Route]` attribute and renders Twig itself.

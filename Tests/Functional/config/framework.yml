@@ -12,3 +12,8 @@ framework:
         enabled: true
     router:
         resource: "%kernel.project_dir%/config/routing.yml"
+
+services:
+    JMS\I18nRoutingBundle\Tests\Functional\TestBundle\Controller\DefaultController:
+        arguments: ['@twig']
+        tags: ['controller.service_arguments']
