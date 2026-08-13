@@ -57,6 +57,27 @@ class I18nRouterTest extends TestCase
         self::assertEquals('/', $router->generate('homepage', array('_locale' => 'de')));
     }
 
+    /**
+     * The localized routes carry a "_locales" list rather than a "_locale" default, so the parameter
+     * must not reach the generator: it would end up in the query string of an otherwise valid URL.
+     *
+     * @dataProvider getExtraParameterOrders
+     */
+    public function testGenerateDoesNotLeakTheLocaleIntoTheQueryString(array $parameters)
+    {
+        $router = $this->getRouter();
+
+        self::assertEquals('/willkommen-auf-unserer-webseite?page=2', $router->generate('welcome', $parameters));
+    }
+
+    public function getExtraParameterOrders()
+    {
+        return array(
+            'locale first' => array(array('_locale' => 'de', 'page' => 2)),
+            'locale last'  => array(array('page' => 2, '_locale' => 'de')),
+        );
+    }
+
     public function testGenerateWithHostMap()
     {
         $router = $this->getRouter();

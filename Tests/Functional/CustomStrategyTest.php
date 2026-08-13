@@ -20,7 +20,7 @@ namespace JMS\I18nRoutingBundle\Tests\Functional;
 
 class CustomStrategyTest extends BaseTestCase
 {
-    protected static $class = CustomStrategyKernel::class;
+    protected static $kernelClass = CustomStrategyKernel::class;
 
     public function testDefaultLocaleIsSetCorrectly()
     {

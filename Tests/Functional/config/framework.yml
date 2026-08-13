@@ -1,6 +1,10 @@
 framework:
     secret: test
     test: ~
+    # doctrine/annotations only comes in as a transitive dependency, so annotations are off by
+    # default. The test controller relies on them for @Route and @Template.
+    annotations:
+        enabled: true
     session:
         storage_id: session.storage.filesystem
     form: true
