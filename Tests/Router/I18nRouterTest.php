@@ -96,7 +96,7 @@ class I18nRouterTest extends TestCase
         return array(
             'country'                    => array('fr_FR', '/bienvenue'),
             'other country'              => array('fr_BE', '/welkom'),
-            'company overriding'         => array('fr_FR-MYCOMPANY', '/bienvenue-altarea'),
+            'company overriding'         => array('fr_FR-MYCOMPANY', '/bienvenue-mycompany'),
             'company without a override' => array('fr_BE-ACME', '/welkom'),
         );
     }
@@ -107,7 +107,7 @@ class I18nRouterTest extends TestCase
         $translator->addLoader('array', new ArrayLoader());
         $translator->addResource('array', array('welcome' => '/bienvenue'), 'fr', 'routes');
         $translator->addResource('array', array('welcome' => '/welkom'), 'fr_BE', 'routes');
-        $translator->addResource('array', array('welcome' => '/bienvenue-altarea'), 'fr_FR-MYCOMPANY', 'routes');
+        $translator->addResource('array', array('welcome' => '/bienvenue-mycompany'), 'fr_FR-MYCOMPANY', 'routes');
 
         $locales = array('fr_FR', 'fr_BE', 'fr_FR-MYCOMPANY', 'fr_BE-ACME');
 
