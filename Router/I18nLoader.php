@@ -103,18 +103,22 @@ class I18nLoader
     /**
      * The chain of route name suffixes a locale falls back on, shallowest first.
      *
-     * This mirrors Symfony's generator, which walks a locale by stripping everything after the first
-     * underscore: "fr_BE" resolves "fr_BE" then "fr", and "zh_Hans_CN" resolves "zh_Hans_CN" then
-     * "zh" - never the intermediate "zh_Hans". Building the tree on any other chain would create
-     * nodes the generator never looks up.
+     * Every part counts, and both separators delimit one: "fr_BE" falls back on "fr", and the
+     * per-company locales - written "fr_FR-ALTAREA" - fall back on "fr_FR" then "fr". Symfony's own
+     * generator is coarser, stripping only what follows the first underscore, so it would send
+     * "fr_FR-ALTAREA" straight to "fr" and skip the country. I18nRouter::generate() walks those
+     * locales itself for that reason; anything with at most two parts resolves identically either
+     * way, and goes through Symfony untouched.
      *
      * @return array<int, string>
      */
     private function localeFallbackChain(string $locale): array
     {
-        $chain = array($locale);
-        while (false !== $locale = strstr($locale, '_', true)) {
-            array_unshift($chain, $locale);
+        $parts = preg_split('/[-_]/', $locale);
+
+        $chain = array();
+        for ($i = 1, $count = count($parts); $i <= $count; $i++) {
+            $chain[] = implode('_', array_slice($parts, 0, $i));
         }
 
         return $chain;

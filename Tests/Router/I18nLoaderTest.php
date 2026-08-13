@@ -247,6 +247,50 @@ class I18nLoaderTest extends TestCase
         self::assertEquals('en', $route->getDefault('_locale'));
     }
 
+    /**
+     * The per-company locales are written "fr_FR-ALTAREA": three parts, and a hyphen. Each part is a
+     * level of its own, so such a locale falls back on its country before falling back on its
+     * language.
+     */
+    public function testLoadGivesPerCompanyLocalesTheirOwnLevel()
+    {
+        $translator = new Translator('fr_FR');
+        $translator->addLoader('array', new ArrayLoader());
+        $translator->addResource('array', array('contact' => '/contact-fr'), 'fr', 'routes');
+        $translator->addResource('array', array('contact' => '/contact-be'), 'fr_BE', 'routes');
+        $translator->addResource('array', array('contact' => '/contact-altarea'), 'fr_FR-ALTAREA', 'routes');
+
+        $locales = array('fr_FR', 'fr_BE', 'fr_FR-ALTAREA', 'fr_BE-ACME');
+        $loader  = new I18nLoader(
+            new DefaultRouteExclusionStrategy(),
+            new DefaultPatternGenerationStrategy('custom', $translator, $locales, sys_get_temp_dir()),
+            $locales
+        );
+
+        $col = new RouteCollection();
+        $col->add('contact', new Route('/contact'));
+        $i18nCol = $loader->load($col);
+
+        // The overriding company locale gets a node of its own, named with underscores whatever the
+        // separator in the locale - both the router and the JavaScript client rely on that shape.
+        $altarea = $i18nCol->get('contact.fr_FR_ALTAREA');
+        self::assertNotNull($altarea);
+        self::assertEquals('/contact-altarea', $altarea->getPath());
+        self::assertEquals('fr_FR-ALTAREA', $altarea->getDefault('_locale'));
+
+        // The company locale without a catalogue of its own claims no node: it rides on the one
+        // holding its country's pattern.
+        self::assertNull($i18nCol->get('contact.fr_BE_ACME'));
+        $paths = array();
+        foreach ($i18nCol->all() as $route) {
+            $paths[$route->getPath()] = array_merge(
+                $route->getDefault('_locales') ?? array(),
+                array_filter(array($route->getDefault('_locale')))
+            );
+        }
+        self::assertContains('fr_BE-ACME', $paths['/contact-be']);
+    }
+
     public function getStrategies()
     {
         return array(array('custom'), array('prefix'), array('prefix_except_default'));

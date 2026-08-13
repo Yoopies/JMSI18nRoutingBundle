@@ -134,6 +134,22 @@ class I18nRouter extends Router
         $this->context->setParameter('_locale', $locale);
 
         try {
+            // Symfony only strips what follows the first underscore, so it would send a per-company
+            // locale such as "fr_FR-ALTAREA" straight to "<route>.fr" and skip "<route>.fr_FR".
+            // Those are walked here; the last step, "<route>.fr" and then the plain route name, is
+            // what Symfony resolves below anyway.
+            // A locale of at most two parts resolves identically either way, so it costs nothing and
+            // goes through Symfony untouched.
+            $localeParts = preg_split('/[-_]/', (string) $locale);
+            if (count($localeParts) > 2) {
+                for ($i = count($localeParts); $i > 1; $i--) {
+                    try {
+                        return $generator->generate($name.'.'.implode('_', array_slice($localeParts, 0, $i)), $parameters, $referenceType);
+                    } catch (RouteNotFoundException $ex) {
+                    }
+                }
+            }
+
             return $generator->generate($name, $parameters, $referenceType);
         } finally {
             $this->context->setParameter('_locale', $currentContextLocale);

@@ -24,6 +24,7 @@ use JMS\I18nRoutingBundle\Router\DefaultRouteExclusionStrategy;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Translation\IdentityTranslator;
+use Symfony\Component\Translation\Loader\ArrayLoader;
 use Symfony\Component\Translation\Loader\YamlFileLoader as TranslationLoader;
 use Symfony\Component\Translation\MessageSelector;
 use Symfony\Component\Translation\Translator;
@@ -76,6 +77,53 @@ class I18nRouterTest extends TestCase
             'locale first' => array(array('_locale' => 'de', 'page' => 2)),
             'locale last'  => array(array('page' => 2, '_locale' => 'de')),
         );
+    }
+
+    /**
+     * The per-company locales are written "fr_FR-ALTAREA": three parts, and a hyphen. Each part is a
+     * fallback level of its own, so such a locale uses its own path when it has one and its
+     * country's otherwise - never jumping straight back to the language.
+     *
+     * @dataProvider getCompanyLocaleUrls
+     */
+    public function testGenerateWalksEveryPartOfACompanyLocale($locale, $expectedUrl)
+    {
+        self::assertEquals($expectedUrl, $this->getCompanyLocaleRouter()->generate('welcome', array('_locale' => $locale)));
+    }
+
+    public function getCompanyLocaleUrls()
+    {
+        return array(
+            'country'                    => array('fr_FR', '/bienvenue'),
+            'other country'              => array('fr_BE', '/welkom'),
+            'company overriding'         => array('fr_FR-ALTAREA', '/bienvenue-altarea'),
+            'company without a override' => array('fr_BE-ACME', '/welkom'),
+        );
+    }
+
+    private function getCompanyLocaleRouter()
+    {
+        $translator = new Translator('fr_FR');
+        $translator->addLoader('array', new ArrayLoader());
+        $translator->addResource('array', array('welcome' => '/bienvenue'), 'fr', 'routes');
+        $translator->addResource('array', array('welcome' => '/welkom'), 'fr_BE', 'routes');
+        $translator->addResource('array', array('welcome' => '/bienvenue-altarea'), 'fr_FR-ALTAREA', 'routes');
+
+        $locales = array('fr_FR', 'fr_BE', 'fr_FR-ALTAREA', 'fr_BE-ACME');
+
+        $container = new Container();
+        $container->set('routing.loader', new YamlFileLoader(new FileLocator(__DIR__.'/Fixture')));
+        $container->set('i18n_loader', new I18nLoader(
+            new DefaultRouteExclusionStrategy(),
+            new DefaultPatternGenerationStrategy('custom', $translator, $locales, sys_get_temp_dir(), 'routes', 'fr_FR'),
+            $locales
+        ));
+
+        $router = new I18nRouter($container, 'routing.yml');
+        $router->setI18nLoaderId('i18n_loader');
+        $router->setDefaultLocale('fr_FR');
+
+        return $router;
     }
 
     public function testGenerateWithHostMap()

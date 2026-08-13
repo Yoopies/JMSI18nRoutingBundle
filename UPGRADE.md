@@ -24,12 +24,26 @@ Known callers in this stack:
 * **`Yoopies/Yoopies`** — `config/packages/fos_js_routing.yaml` lists routes to expose by name.
   Drop the `__RG__` prefix from every entry. **Required**: without it the entries match nothing and
   the routes disappear from the JavaScript bundle.
-* **`Yoopies/FOSJsRoutingBundle`** — `ExposedRoutesExtractor::getPrefix()` returned
-  `<locale>__RG__`, and `Resources/public/js/router.js` rebuilt the same walk client-side. Both now
-  follow the `<route>.<locale>` chain.
+* **`Yoopies/Yoopies`** — `assets/js/services/fosRoutingFallback.js` rebuilds the locale walk
+  client-side and has to follow the `<route>.<locale>` chain instead of the `<locale>__RG__` one.
 
-`I18nLoader::ROUTING_PREFIX` still exists so that no update order can produce a fatal error, but it
-is deprecated and nothing in the bundle uses it any more.
+`I18nLoader::ROUTING_PREFIX` **must not be removed**. `FOSJsRoutingBundle` references it upstream -
+`ExposedRoutesExtractor::getPrefix()` returns `$locale.I18nLoader::ROUTING_PREFIX` whenever this
+bundle is installed - so dropping it fatals the application. Nothing in this bundle uses it any
+more; the prefix it produces simply no longer matches any route name, which is harmless because the
+JavaScript client also tries the bare route name.
+
+### Locales are walked part by part
+
+A locale falls back one part at a time, and both `-` and `_` delimit a part: `fr_BE` falls back on
+`fr`, and the per-company locales - written `fr_FR-ALTAREA` by `CompanyLocale` - fall back on
+`fr_FR` and then on `fr`. Route names always join the parts with `_`, so the company locale above
+looks for `<route>.fr_FR_ALTAREA`.
+
+Symfony's own generator is coarser: it strips only what follows the first underscore, which would
+send `fr_FR-ALTAREA` straight to `fr` and skip the country. `I18nRouter::generate()` therefore walks
+locales of more than two parts itself, and hands everything else to Symfony untouched - so the
+common case keeps costing nothing.
 
 ### Route defaults changed
 
