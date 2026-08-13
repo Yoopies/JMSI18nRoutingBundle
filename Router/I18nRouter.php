@@ -135,7 +135,7 @@ class I18nRouter extends Router
 
         try {
             // Symfony only strips what follows the first underscore, so it would send a per-company
-            // locale such as "fr_FR-ALTAREA" straight to "<route>.fr" and skip "<route>.fr_FR".
+            // locale such as "fr_FR-MYCOMPANY" straight to "<route>.fr" and skip "<route>.fr_FR".
             // Those are walked here; the last step, "<route>.fr" and then the plain route name, is
             // what Symfony resolves below anyway.
             // A locale of at most two parts resolves identically either way, so it costs nothing and

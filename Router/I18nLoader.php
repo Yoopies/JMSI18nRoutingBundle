@@ -104,14 +104,23 @@ class I18nLoader
      * The chain of route name suffixes a locale falls back on, shallowest first.
      *
      * Every part counts, and both separators delimit one: "fr_BE" falls back on "fr", and the
-     * per-company locales - written "fr_FR-ALTAREA" - fall back on "fr_FR" then "fr". Symfony's own
+     * per-company locales - written "fr_FR-MYCOMPANY" - fall back on "fr_FR" then "fr". Symfony's own
      * generator is coarser, stripping only what follows the first underscore, so it would send
-     * "fr_FR-ALTAREA" straight to "fr" and skip the country. I18nRouter::generate() walks those
+     * "fr_FR-MYCOMPANY" straight to "fr" and skip the country. I18nRouter::generate() walks those
      * locales itself for that reason; anything with at most two parts resolves identically either
      * way, and goes through Symfony untouched.
      *
      * @return array<int, string>
      */
+    /**
+     * The route name suffix a locale is registered under: its parts joined with underscores,
+     * whichever separator the locale itself uses.
+     */
+    private function localeRouteSuffix(string $locale): string
+    {
+        return implode('_', preg_split('/[-_]/', $locale));
+    }
+
     private function localeFallbackChain(string $locale): array
     {
         $parts = preg_split('/[-_]/', $locale);
@@ -133,7 +142,19 @@ class I18nLoader
     {
         $patternsByLocale = array('default' => $route->getPath(), 'locales' => array());
 
+        // A node is named after the part of the locale chain it covers, and generating for a locale
+        // looks that name up. Naming a node after another locale of this route would therefore hand
+        // that locale the wrong path: "fr_FR-MYCOMPANY" must not take the "fr_FR" name, which belongs
+        // to "fr_FR" itself.
+        $claimed = array();
+        foreach ($patterns as $patternLocales) {
+            foreach ($patternLocales as $patternLocale) {
+                $claimed[$this->localeRouteSuffix($patternLocale)] = true;
+            }
+        }
+
         foreach ($this->sortLocalePatterns($patterns) as list($locale, $pattern)) {
+            $ownSuffix    = $this->localeRouteSuffix($locale);
             $registered   = false;
             $currentTable = &$patternsByLocale;
             foreach ($this->localeFallbackChain($locale) as $suffix) {
@@ -143,13 +164,19 @@ class I18nLoader
                     break;
                 }
 
-                if (!isset($currentTable[$suffix])) {
-                    $currentTable[$suffix] = array('default' => $pattern, 'locales' => array($locale));
-                    $registered = true;
-                    break;
+                if (isset($currentTable[$suffix])) {
+                    $currentTable = &$currentTable[$suffix];
+                    continue;
                 }
 
-                $currentTable = &$currentTable[$suffix];
+                // Taken by another locale: go one level deeper rather than steal its name.
+                if ($suffix !== $ownSuffix && isset($claimed[$suffix])) {
+                    continue;
+                }
+
+                $currentTable[$suffix] = array('default' => $pattern, 'locales' => array($locale));
+                $registered = true;
+                break;
             }
             unset($currentTable);
 

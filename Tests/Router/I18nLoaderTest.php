@@ -248,7 +248,7 @@ class I18nLoaderTest extends TestCase
     }
 
     /**
-     * The per-company locales are written "fr_FR-ALTAREA": three parts, and a hyphen. Each part is a
+     * The per-company locales are written "fr_FR-MYCOMPANY": three parts, and a hyphen. Each part is a
      * level of its own, so such a locale falls back on its country before falling back on its
      * language.
      */
@@ -258,9 +258,9 @@ class I18nLoaderTest extends TestCase
         $translator->addLoader('array', new ArrayLoader());
         $translator->addResource('array', array('contact' => '/contact-fr'), 'fr', 'routes');
         $translator->addResource('array', array('contact' => '/contact-be'), 'fr_BE', 'routes');
-        $translator->addResource('array', array('contact' => '/contact-altarea'), 'fr_FR-ALTAREA', 'routes');
+        $translator->addResource('array', array('contact' => '/contact-altarea'), 'fr_FR-MYCOMPANY', 'routes');
 
-        $locales = array('fr_FR', 'fr_BE', 'fr_FR-ALTAREA', 'fr_BE-ACME');
+        $locales = array('fr_FR', 'fr_BE', 'fr_FR-MYCOMPANY', 'fr_BE-ACME');
         $loader  = new I18nLoader(
             new DefaultRouteExclusionStrategy(),
             new DefaultPatternGenerationStrategy('custom', $translator, $locales, sys_get_temp_dir()),
@@ -276,7 +276,7 @@ class I18nLoaderTest extends TestCase
         $altarea = $i18nCol->get('contact.fr_FR_ALTAREA');
         self::assertNotNull($altarea);
         self::assertEquals('/contact-altarea', $altarea->getPath());
-        self::assertEquals('fr_FR-ALTAREA', $altarea->getDefault('_locale'));
+        self::assertEquals('fr_FR-MYCOMPANY', $altarea->getDefault('_locale'));
 
         // The company locale without a catalogue of its own claims no node: it rides on the one
         // holding its country's pattern.
@@ -289,6 +289,38 @@ class I18nLoaderTest extends TestCase
             );
         }
         self::assertContains('fr_BE-ACME', $paths['/contact-be']);
+    }
+
+    /**
+     * A node is named after the part of the locale chain it covers, and generating for a locale looks
+     * that name up. When "fr_FR" shares its country's pattern it holds no node of its own, and a
+     * company locale diverging below it must not take the free "fr_FR" name: "fr_FR" would then
+     * resolve to the company's path.
+     */
+    public function testLoadDoesNotNameACompanyNodeAfterAnotherLocale()
+    {
+        $translator = new Translator('fr_FR');
+        $translator->addLoader('array', new ArrayLoader());
+        $translator->addResource('array', array('contact' => '/contact-fr'), 'fr', 'routes');
+        $translator->addResource('array', array('contact' => '/contact-altarea'), 'fr_FR-MYCOMPANY', 'routes');
+
+        $locales = array('fr_FR', 'fr_BE', 'fr_FR-MYCOMPANY');
+        $loader  = new I18nLoader(
+            new DefaultRouteExclusionStrategy(),
+            new DefaultPatternGenerationStrategy('custom', $translator, $locales, sys_get_temp_dir()),
+            $locales
+        );
+
+        $col = new RouteCollection();
+        $col->add('contact', new Route('/contact'));
+        $i18nCol = $loader->load($col);
+
+        // "fr_FR" and "fr_BE" share the language node, so no route is named after either of them.
+        self::assertNull($i18nCol->get('contact.fr_FR'));
+        self::assertEquals('/contact-fr', $i18nCol->get('contact.fr')->getPath());
+        self::assertEquals(array('fr_FR', 'fr_BE'), $i18nCol->get('contact.fr')->getDefault('_locales'));
+
+        self::assertEquals('/contact-altarea', $i18nCol->get('contact.fr_FR_ALTAREA')->getPath());
     }
 
     public function getStrategies()

@@ -80,7 +80,7 @@ class I18nRouterTest extends TestCase
     }
 
     /**
-     * The per-company locales are written "fr_FR-ALTAREA": three parts, and a hyphen. Each part is a
+     * The per-company locales are written "fr_FR-MYCOMPANY": three parts, and a hyphen. Each part is a
      * fallback level of its own, so such a locale uses its own path when it has one and its
      * country's otherwise - never jumping straight back to the language.
      *
@@ -96,7 +96,7 @@ class I18nRouterTest extends TestCase
         return array(
             'country'                    => array('fr_FR', '/bienvenue'),
             'other country'              => array('fr_BE', '/welkom'),
-            'company overriding'         => array('fr_FR-ALTAREA', '/bienvenue-altarea'),
+            'company overriding'         => array('fr_FR-MYCOMPANY', '/bienvenue-altarea'),
             'company without a override' => array('fr_BE-ACME', '/welkom'),
         );
     }
@@ -107,9 +107,9 @@ class I18nRouterTest extends TestCase
         $translator->addLoader('array', new ArrayLoader());
         $translator->addResource('array', array('welcome' => '/bienvenue'), 'fr', 'routes');
         $translator->addResource('array', array('welcome' => '/welkom'), 'fr_BE', 'routes');
-        $translator->addResource('array', array('welcome' => '/bienvenue-altarea'), 'fr_FR-ALTAREA', 'routes');
+        $translator->addResource('array', array('welcome' => '/bienvenue-altarea'), 'fr_FR-MYCOMPANY', 'routes');
 
-        $locales = array('fr_FR', 'fr_BE', 'fr_FR-ALTAREA', 'fr_BE-ACME');
+        $locales = array('fr_FR', 'fr_BE', 'fr_FR-MYCOMPANY', 'fr_BE-ACME');
 
         $container = new Container();
         $container->set('routing.loader', new YamlFileLoader(new FileLocator(__DIR__.'/Fixture')));
