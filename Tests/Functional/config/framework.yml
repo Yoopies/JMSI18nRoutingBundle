@@ -1,14 +1,19 @@
 framework:
     secret: test
     test: ~
-    session:
-        storage_id: session.storage.filesystem
-    form: true
-    csrf_protection: true
-    validation:       
+    # doctrine/annotations only comes in as a transitive dependency, so annotations are off by
+    # default. The test controller relies on them for @Route and @Template.
+    annotations:
         enabled: true
-        enable_annotations: true
+    session:
+        # "storage_id" was dropped in Symfony 6; the factory equivalent works on 5.4 too.
+        storage_factory_id: session.storage.factory.mock_file
     translator:
         enabled: true
     router:
         resource: "%kernel.project_dir%/config/routing.yml"
+
+services:
+    JMS\I18nRoutingBundle\Tests\Functional\TestBundle\Controller\DefaultController:
+        arguments: ['@twig']
+        tags: ['controller.service_arguments']

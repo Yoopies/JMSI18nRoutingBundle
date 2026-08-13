@@ -1,14 +1,18 @@
 {
-    "name":         "jms/i18n-routing-bundle",
-    "description":  "This bundle allows you to create i18n routes.",
-    "keywords":     ["translation","multilanguage","routing"],
-    "homepage": "http://jmsyst.com/bundles/JMSI18nRoutingBundle",       
-    "type":         "symfony-bundle",
-    "license":      "Apache2",
+    "name": "jms/i18n-routing-bundle",
+    "description": "This bundle allows you to create i18n routes.",
+    "keywords": [
+        "translation",
+        "multilanguage",
+        "routing"
+    ],
+    "homepage": "http://jmsyst.com/bundles/JMSI18nRoutingBundle",
+    "type": "symfony-bundle",
+    "license": "Apache2",
     "authors": [
         {
-            "name":   "Johannes M. Schmitt",
-            "email":  "schmittjoh@gmail.com"
+            "name": "Johannes M. Schmitt",
+            "email": "schmittjoh@gmail.com"
         },
         {
             "name": "Albert Casademont",
@@ -16,19 +20,32 @@
         }
     ],
     "require": {
-        "php": ">=7.3",
-        "symfony/framework-bundle": ">=4.4"
+        "php": "^8.2",
+        "symfony/framework-bundle": "^5.4 || ^6.0"
     },
     "require-dev": {
-        "sensio/framework-extra-bundle": "*",
-        "symfony/symfony": "^4.4|^5.0",
-        "phpunit/phpunit": "^8.0|^9.0"
+        "doctrine/annotations": "^1.13 || ^2.0",
+        "phpunit/phpunit": "^9.6",
+        "symfony/browser-kit": "^5.4 || ^6.0",
+        "symfony/config": "^5.4 || ^6.0",
+        "symfony/css-selector": "^5.4 || ^6.0",
+        "symfony/dependency-injection": "^5.4 || ^6.0",
+        "symfony/event-dispatcher": "^5.4 || ^6.0",
+        "symfony/http-foundation": "^5.4 || ^6.0",
+        "symfony/http-kernel": "^5.4 || ^6.0",
+        "symfony/routing": "^5.4 || ^6.0",
+        "symfony/translation": "^5.4 || ^6.0",
+        "symfony/twig-bundle": "^5.4 || ^6.0",
+        "symfony/yaml": "^5.4 || ^6.0",
+        "symfony/process": "^5.4 || ^6.0"
     },
     "suggest": {
         "jms/translation-bundle": "If you want to use the RouteTranslation extractor"
     },
     "autoload": {
-        "psr-0": { "JMS\\I18nRoutingBundle": "" }
+        "psr-0": {
+            "JMS\\I18nRoutingBundle": ""
+        }
     },
     "target-dir": "JMS/I18nRoutingBundle"
 }

@@ -27,6 +27,7 @@ use Symfony\Bundle\FrameworkBundle\Routing\Router;
 use Symfony\Component\Routing\Exception\RouteNotFoundException;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\RouteCollection;
 
 /**
  * I18n Router implementation.
@@ -38,7 +39,6 @@ class I18nRouter extends Router
     private $hostMap = array();
     private $i18nLoaderId;
     private $container;
-    protected $defaultLocale;
     private $redirectToHost = true;
     private $localeResolver;
 
@@ -97,7 +97,7 @@ class I18nRouter extends Router
     /**
      * {@inheritdoc}
      */
-    public function generate($name, $parameters = array(), $referenceType = self::ABSOLUTE_PATH)
+    public function generate($name, $parameters = array(), $referenceType = self::ABSOLUTE_PATH): string
     {
         // determine the most suitable locale to use for route generation
         $currentLocale = $this->context->getParameter('_locale');
@@ -124,35 +124,51 @@ class I18nRouter extends Router
             $this->context->setHost($this->hostMap[$locale]);
         }
 
+        // The loader names the localized routes the way Symfony names its own ("contact.fr_BE",
+        // "contact.fr", plain "contact"), so the generator resolves the right one on its own by
+        // walking the locale down, and drops the "_locale" parameter rather than appending it to the
+        // query string. Publishing the locale we settled on through the context is all it takes, and
+        // it leaves the caller's parameters untouched - a route excluded from i18n still receives
+        // them verbatim.
+        $currentContextLocale = $this->context->getParameter('_locale');
+        $this->context->setParameter('_locale', $locale);
+
         try {
-            $url = $generator->generate($locale.I18nLoader::ROUTING_PREFIX.$name, $parameters, $referenceType);
+            // Symfony only strips what follows the first underscore, so it would send a per-company
+            // locale such as "fr_FR-MYCOMPANY" straight to "<route>.fr" and skip "<route>.fr_FR".
+            // Those are walked here; the last step, "<route>.fr" and then the plain route name, is
+            // what Symfony resolves below anyway.
+            // A locale of at most two parts resolves identically either way, so it costs nothing and
+            // goes through Symfony untouched.
+            $localeParts = preg_split('/[-_]/', (string) $locale);
+            if (count($localeParts) > 2) {
+                for ($i = count($localeParts); $i > 1; $i--) {
+                    try {
+                        return $generator->generate($name.'.'.implode('_', array_slice($localeParts, 0, $i)), $parameters, $referenceType);
+                    } catch (RouteNotFoundException $ex) {
+                    }
+                }
+            }
+
+            return $generator->generate($name, $parameters, $referenceType);
+        } finally {
+            $this->context->setParameter('_locale', $currentContextLocale);
 
             if ($needsHost && $this->hostMap) {
                 $this->context->setHost($currentHost);
             }
-
-            return $url;
-        } catch (RouteNotFoundException $ex) {
-            if ($needsHost && $this->hostMap) {
-                $this->context->setHost($currentHost);
-            }
-
-            // fallback to default behavior
         }
-
-        // use the default behavior if no localized route exists
-        return $generator->generate($name, $parameters, $referenceType);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function match($url)
+    public function match(string $pathinfo): array
     {
-        return $this->matchI18n(parent::match($url), $url);
+        return $this->matchI18n(parent::match($pathinfo), $pathinfo);
     }
 
-    public function getRouteCollection()
+    public function getRouteCollection(): RouteCollection
     {
         $collection = parent::getRouteCollection();
 
@@ -166,8 +182,10 @@ class I18nRouter extends Router
 
     /**
      * To make compatible with Symfony <2.4
+     *
+     * @inheritDoc
      */
-    public function matchRequest(Request $request)
+    public function matchRequest(Request $request): array
     {
         $matcher = $this->getMatcher();
         $pathInfo = $request->getPathInfo();
@@ -181,31 +199,51 @@ class I18nRouter extends Router
 
     private function matchI18n(array $params, $url)
     {
-        if (false === $params) {
-            return false;
-        }
-
         $request = $this->getRequest();
 
-        if (isset($params['_locales'])) {
-            if (false !== $pos = strpos($params['_route'], I18nLoader::ROUTING_PREFIX)) {
-                $params['_route'] = substr($params['_route'], $pos + strlen(I18nLoader::ROUTING_PREFIX));
+        // A localized route reports the name it was expanded from, which is the one the application
+        // knows about.
+        if (isset($params['_canonical_route'])) {
+            $params['_route'] = $params['_canonical_route'];
+            unset($params['_canonical_route']);
+        }
+
+        // A route available in every configured locale is flagged rather than carrying the whole
+        // list, which would be dumped in both routing caches. Restore it here to keep the resolution
+        // below uniform with the routes that do restrict their locales.
+        $locales = $params['_locales'] ?? null;
+        if (isset($params[I18nLoader::ALL_LOCALES])) {
+            unset($params[I18nLoader::ALL_LOCALES]);
+
+            if (null === $locales && $this->container->hasParameter('jms_i18n_routing.locales')) {
+                $locales = $this->container->getParameter('jms_i18n_routing.locales');
+            }
+        }
+
+        if (null !== $locales) {
+            // The resolver comes first, not the request context. Symfony seeds the context with the
+            // framework's default locale before the router runs - LocaleListener::setDefaultLocale()
+            // does it at priority 100, ahead of the RouterListener - so a locale sitting in the
+            // context is no longer evidence that anything chose it for this visitor. Reading it first
+            // would mean never asking the resolver, and every host but the default one would resolve
+            // to the wrong locale.
+            $currentLocale = null;
+            if (null !== $request) {
+                $currentLocale = $this->localeResolver->resolveLocale($request, $locales);
             }
 
-            if (!($currentLocale = $this->context->getParameter('_locale'))
-                    && null !== $request) {
-                $currentLocale = $this->localeResolver->resolveLocale(
-                    $request, $params['_locales']
-                );
-
-                // If the locale resolver was not able to determine a locale, then all efforts to
-                // make an informed decision have failed. Just display something as a last resort.
-                if (!$currentLocale) {
-                    $currentLocale = reset($params['_locales']);
-                }
+            // Outside a request - a sub-request, a console command - the context is all there is.
+            if (!$currentLocale) {
+                $currentLocale = $this->context->getParameter('_locale');
             }
 
-            if (!in_array($currentLocale, $params['_locales'], true)) {
+            // If neither could determine a locale, then all efforts to make an informed decision
+            // have failed. Just display something as a last resort.
+            if (!$currentLocale && null !== $request) {
+                $currentLocale = reset($locales);
+            }
+
+            if (!in_array($currentLocale, $locales, true)) {
                 // TODO: We might want to allow the user to be redirected to the route for the given locale if
                 //       it exists regardless of whether it would be on another domain, or the same domain.
                 //       Below we assume that we do not want to redirect always.
@@ -216,7 +254,7 @@ class I18nRouter extends Router
                     $hostMap = $this->hostMap;
                     $availableHosts = array_map(function($locale) use ($hostMap) {
                         return $hostMap[$locale];
-                    }, $params['_locales']);
+                    }, $locales);
 
                     $differentHost = true;
                     foreach ($availableHosts as $host) {
@@ -233,13 +271,11 @@ class I18nRouter extends Router
                 }
 
                 // no host map, or same host means that the given locale is not supported for this route
-                throw new NotAcceptableLanguageException($currentLocale, $params['_locales']);
+                throw new NotAcceptableLanguageException($currentLocale, $locales);
             }
 
             unset($params['_locales']);
             $params['_locale'] = $currentLocale;
-        } else if (isset($params['_locale']) && 0 < $pos = strpos($params['_route'], I18nLoader::ROUTING_PREFIX)) {
-            $params['_route'] = substr($params['_route'], $pos + strlen(I18nLoader::ROUTING_PREFIX));
         }
 
         // check if the matched route belongs to a different locale on another host

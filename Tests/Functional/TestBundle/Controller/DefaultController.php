@@ -19,22 +19,24 @@
 namespace JMS\I18nRoutingBundle\Tests\Functional\TestBundle\Controller;
 
 use Symfony\Component\HttpFoundation\Request;
-
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
-
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
+use Twig\Environment;
 
 class DefaultController
 {
-    /**
-     * @Route("/", name = "homepage")
-     * @Template
-     */
-    public function indexAction(Request $request)
-    {
-        $locale = method_exists($request, 'getLocale') ? $request->getLocale()
-            : $request->getSession()->getLocale();
+    private $twig;
 
-        return array('locale' => $locale);
+    public function __construct(Environment $twig)
+    {
+        $this->twig = $twig;
+    }
+
+    #[Route('/', name: 'homepage')]
+    public function indexAction(Request $request): Response
+    {
+        return new Response($this->twig->render('@Test/default/index.html.twig', array(
+            'locale' => $request->getLocale(),
+        )));
     }
 }
